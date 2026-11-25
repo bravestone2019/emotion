@@ -7,6 +7,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
+from collections import deque
+
 from model import EmotionCNN
 
 # Project paths
@@ -54,6 +56,8 @@ if not camera.isOpened():
 
 print("Webcam started. Press Q to quit.")
 
+history = deque(maxlen=10)
+
 try:
     while True:
         ret, frame = camera.read()
@@ -77,7 +81,10 @@ try:
 
         for (x, y, w, h) in faces:
             # Crop detected face
-            face = gray[y:y+h, x:x+w]
+            m = int(0.1 * w)
+            y1, y2 = max(y - m, 0), min(y + h + m, gray.shape[0])
+            x1, x2 = max(x - m, 0), min(x + w + m, gray.shape[1])
+            face = gray[y1:y2, x1:x2]
 
             # Match model's expected input preprocessing
             face = cv2.resize(face, (48, 48))
@@ -94,9 +101,11 @@ try:
                 outputs = model(face_tensor)
                 probabilities = F.softmax(outputs, dim=1)[0]
 
-            predicted_index = probabilities.argmax().item()
-            emotion = classes[predicted_index]
-            score = probabilities[predicted_index].item() * 100
+                history.append(probabilities.cpu().numpy())
+                avg_probs = np.mean(history, axis=0)
+                predicted_index = int(np.argmax(avg_probs))
+                emotion = classes[predicted_index]
+                score = avg_probs[predicted_index] * 100
 
             # Draw face box and prediction
             cv2.rectangle(
