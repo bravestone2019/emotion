@@ -7,11 +7,6 @@ outputs/
 # dataset
 archive/
 
-# model weights
-models/*.h5
-models/*.pt
-models/*.pth
-
 # python
 __pycache__/
 *.pyc
